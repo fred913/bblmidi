@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 import pretty_midi
 
 # 一些常见三和弦模板（按 pitch class 表示）
-CHORD_TEMPLATES: Dict[str, List[int]] = {
+CHORD_TEMPLATES: dict[str, list[int]] = {
     "maj": [0, 4, 7],
     "min": [0, 3, 7],
     "dim": [0, 3, 6],
@@ -26,8 +26,8 @@ class MelodyCandidate:
     other_max_dur: float
 
 
-def gather_all_notes(pm: pretty_midi.PrettyMIDI) -> List[pretty_midi.Note]:
-    notes: List[pretty_midi.Note] = []
+def gather_all_notes(pm: pretty_midi.PrettyMIDI) -> list[pretty_midi.Note]:
+    notes: list[pretty_midi.Note] = []
     for inst in pm.instruments:
         notes.extend(inst.notes)
     notes.sort(key=lambda n: (n.start, n.pitch, n.end))
@@ -35,7 +35,7 @@ def gather_all_notes(pm: pretty_midi.PrettyMIDI) -> List[pretty_midi.Note]:
 
 
 def add_note_monophonic(
-    notes_out: Union[List[pretty_midi.Note], pretty_midi.Instrument],
+    notes_out: list[pretty_midi.Note] | pretty_midi.Instrument,
     note: pretty_midi.Note,
     min_dur: float = 0.01,
 ) -> None:
@@ -63,8 +63,8 @@ def clone(n: pretty_midi.Note) -> pretty_midi.Note:
 
 
 def group_by_onset(
-    notes: List[pretty_midi.Note], onset_tol: float
-) -> List[List[pretty_midi.Note]]:
+    notes: list[pretty_midi.Note], onset_tol: float
+) -> list[list[pretty_midi.Note]]:
     notes = sorted(notes, key=lambda x: (x.start, x.pitch, x.end))
     groups = []
     i = 0
@@ -80,12 +80,12 @@ def group_by_onset(
 
 
 def extract_theme_by_top_onset(
-    all_notes: List[pretty_midi.Note],
+    all_notes: list[pretty_midi.Note],
     onset_tol: float = 0.03,
-) -> Tuple[List[pretty_midi.Note], List[pretty_midi.Note]]:
+) -> tuple[list[pretty_midi.Note], list[pretty_midi.Note]]:
     groups = group_by_onset(all_notes, onset_tol)
-    theme_out: List[pretty_midi.Note] = []
-    remaining: List[pretty_midi.Note] = []
+    theme_out: list[pretty_midi.Note] = []
+    remaining: list[pretty_midi.Note] = []
 
     for g in groups:
         if len(g) == 1:
@@ -101,7 +101,7 @@ def extract_theme_by_top_onset(
     return theme_out, remaining
 
 
-def guess_chord_root(pitch_classes: Set[int], bass_pitch: int) -> Tuple[int, str]:
+def guess_chord_root(pitch_classes: set[int], bass_pitch: int) -> tuple[int, str]:
     """
     返回 (root_pc, quality)
     用“模板命中数”打分，平分时偏向 bass_pitch 所在 pitch class
@@ -121,8 +121,8 @@ def guess_chord_root(pitch_classes: Set[int], bass_pitch: int) -> Tuple[int, str
 
 
 def choose_note_with_pc(
-    group: List[pretty_midi.Note], pc: int, exclude_pitches: Set[int], prefer: str
-) -> Optional[pretty_midi.Note]:
+    group: list[pretty_midi.Note], pc: int, exclude_pitches: set[int], prefer: str
+) -> pretty_midi.Note | None:
     cands = [
         n for n in group if (n.pitch % 12) == pc and n.pitch not in exclude_pitches
     ]
@@ -139,8 +139,8 @@ def choose_note_with_pc(
 
 
 def choose_chord_tone(
-    group: List[pretty_midi.Note], root_pc: int, quality: str, exclude_pitches: Set[int]
-) -> Optional[pretty_midi.Note]:
+    group: list[pretty_midi.Note], root_pc: int, quality: str, exclude_pitches: set[int]
+) -> pretty_midi.Note | None:
     """
     chord 轨优先拿“三度音”。sus 和弦没有三度就退化拿“第二优先音”
     """
@@ -199,7 +199,7 @@ def split_midi(
         program=pretty_midi.instrument_name_to_program("Lead 1 (square)"), name="bass"
     )
 
-    melody_candidates: List[Optional[MelodyCandidate]] = []
+    melody_candidates: list[MelodyCandidate | None] = []
 
     for g in groups:
         g_sorted = sorted(g, key=lambda n: n.pitch)
@@ -219,7 +219,7 @@ def split_midi(
         # 多音簇当作和弦簇
         root_pc, quality = guess_chord_root(pcs, bass_pitch=g_sorted[0].pitch)
 
-        exclude: Set[int] = set()
+        exclude: set[int] = set()
 
         # bass 轨优先拿根音所在 pitch class 的最低音
         bass_note = choose_note_with_pc(g_sorted, root_pc, exclude, prefer="low")
@@ -255,7 +255,7 @@ def split_midi(
         )
 
     # 第二遍用“音区 + 高度差 + 连贯性 + 时值优势”过滤旋律候选
-    prev_pitch: Optional[int] = None
+    prev_pitch: int | None = None
     for cand in melody_candidates:
         if cand is None:
             continue
